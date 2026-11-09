@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17131a">
+  <meta name="description" content="A Halloween Heist visual novel and point-and-click adventure starring Detective Amy Santiago.">
+  <title>Halloween Heist | Amy Santiago</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+    :root{color-scheme:dark;--ink:#f8f1e5;--muted:#c9bda9;--gold:#e5b86a;--gold2:#f6d89d;--panel:rgba(22,19,23,.9);--line:rgba(246,216,157,.27);--red:#b85646}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#17131a;color:var(--ink);font-family:'DM Sans',Arial,sans-serif}button{font:inherit;color:inherit}button:focus-visible{outline:3px solid var(--gold2);outline-offset:3px}
+    #game{height:100svh;min-height:580px;overflow:hidden;position:relative;background:#17131a}
+    .scene-bg{position:absolute;inset:0;background:#25232a center 52%/cover no-repeat;transform:scale(1.015);transition:background-image .45s,filter .45s,background-size .45s}
+    .scene-bg:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,12,16,.14) 5%,rgba(14,12,16,.06) 42%,rgba(14,12,16,.73) 100%),linear-gradient(90deg,rgba(16,13,18,.17),transparent 68%)}
+    .grain{pointer-events:none;position:absolute;inset:0;z-index:3;opacity:.12;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E")}
+    .topbar{position:absolute;z-index:5;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:18px 28px;background:linear-gradient(#151217c9,transparent)}
+    .brand{font:700 13px 'DM Sans',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--gold2)}.top-actions{display:flex;gap:8px}.top-actions[hidden]{display:none}.quiet-button{border:1px solid var(--line);background:#18151bcc;padding:9px 13px;border-radius:999px;font-size:12px;letter-spacing:.04em;cursor:pointer}.quiet-button:hover{border-color:var(--gold);background:#30231b}
+    .scene-label{position:absolute;z-index:4;top:74px;left:30px;color:#fff0d2;font-size:11px;letter-spacing:.2em;text-transform:uppercase;text-shadow:0 2px 10px #000}.scene-label b{color:var(--gold2);font-weight:600}
+    .play-area{position:absolute;z-index:4;inset:100px 24px 210px;pointer-events:none}.hotspot{position:absolute;pointer-events:auto;border:1px solid transparent;background:transparent;border-radius:12px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s}.hotspot:hover,.hotspot:focus-visible{background:rgba(229,184,106,.08);border-color:rgba(246,216,157,.58);box-shadow:0 0 18px #e5b86a30}.hotspot .tip{position:absolute;left:50%;bottom:calc(100% + 9px);transform:translate(-50%,5px);white-space:nowrap;padding:7px 10px;border-radius:7px;background:#17131aeF;border:1px solid var(--line);font-size:11px;opacity:0;transition:.2s;pointer-events:none}.hotspot:hover .tip,.hotspot:focus-visible .tip{opacity:1;transform:translate(-50%,0)}
+    .character-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:12px;pointer-events:none}.character-card{position:relative;min-width:0;min-height:0;overflow:hidden;padding:0;border:1px solid rgba(246,216,157,.35);border-radius:12px;background:#e7dccb;color:#fff;cursor:pointer;pointer-events:auto;box-shadow:0 12px 28px #0006;transition:transform .2s,border-color .2s,box-shadow .2s}.character-card:hover,.character-card:focus-visible{transform:translateY(-3px);border-color:var(--gold2);box-shadow:0 16px 34px #0008}.character-card img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top;background:#e7dccb;transition:filter .2s}.character-card.pair img{object-fit:contain}.character-name{position:absolute;inset:auto 0 0;padding:24px 10px 10px;background:linear-gradient(transparent,#17131af2 50%);font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-align:center}.character-comment{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:#17131ad9;color:#fff1d7;font:600 19px/1.4 'Playfair Display',Georgia,serif;text-align:center;opacity:0;transition:opacity .2s}.character-card:hover .character-comment,.character-card:focus-visible .character-comment{opacity:1}
+    .bottom-stage{position:absolute;z-index:4;left:0;right:0;bottom:0;padding:0 28px 22px;display:grid;grid-template-columns:minmax(170px,22%) 1fr;gap:16px;align-items:end;background:linear-gradient(transparent,rgba(13,11,14,.65) 24%,rgba(13,11,14,.88))}.bottom-stage.solo{grid-template-columns:1fr}.bottom-stage.solo .portrait-wrap{display:none}
+    .portrait-wrap{height:min(43vh,370px);min-height:210px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;position:relative}.portrait{width:100%;height:100%;background-repeat:no-repeat;background-size:230% auto;background-position:46% 4%;filter:drop-shadow(0 6px 15px #0008);mask-image:linear-gradient(#000 78%,transparent 100%)}.portrait.mystery{background:radial-gradient(ellipse at 50% 32%,#d9b276 0 12%,transparent 13%),radial-gradient(ellipse at 50% 64%,#242431 0 31%,transparent 32%),linear-gradient(135deg,#17131a,#75604d 48%,#17131a);mask-image:linear-gradient(#000 78%,transparent 100%)}.portrait.mystery:after{content:'J';display:grid;place-items:center;height:100%;font:700 48px 'Playfair Display',Georgia,serif;color:#f6d89d;text-shadow:0 2px 12px #000;opacity:.82}
+    .dialogue{align-self:end;margin-bottom:0;min-height:154px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(135deg,rgba(26,22,26,.96),rgba(31,25,27,.9));box-shadow:0 18px 45px #0007;padding:18px 22px 16px;backdrop-filter:blur(12px)}
+    .speaker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:0 0 8px}.line-text{font:17px/1.6 'Playfair Display',Georgia,serif;min-height:54px;max-width:920px}.choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}.choice{cursor:pointer;text-align:left;border:1px solid var(--line);border-radius:8px;background:#ffffff0b;padding:10px 14px;font-size:13px;transition:.18s}.choice:hover{background:#d4a85c24;border-color:var(--gold);transform:translateY(-1px)}.choice.primary{background:var(--gold);border-color:var(--gold);color:#211911;font-weight:700}.choice.primary:hover{background:var(--gold2)}.choice.danger{border-color:#b8564677}.hint{font-size:11px;color:var(--muted);margin-top:7px}
+    .toast{position:absolute;z-index:9;top:90px;left:50%;transform:translate(-50%,-8px);padding:10px 15px;border:1px solid var(--line);background:#17131aee;border-radius:999px;font-size:12px;opacity:0;transition:.25s;pointer-events:none}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .modal-backdrop{position:absolute;z-index:10;inset:0;background:#0b090bd9;display:none;align-items:center;justify-content:center;padding:22px;backdrop-filter:blur(8px)}.modal-backdrop.open{display:flex}.modal{width:min(720px,100%);max-height:85%;overflow:auto;background:#201b20;border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 80px #0009;padding:24px}.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:13px}.modal h2{font:700 25px 'Playfair Display',Georgia,serif;margin:0}.modal p{color:var(--muted);line-height:1.6}.close{background:transparent;border:1px solid var(--line);border-radius:50%;width:34px;height:34px;cursor:pointer}.evidence-list{display:grid;gap:10px;margin:15px 0}.evidence{border:1px solid #ffffff16;background:#ffffff08;border-radius:10px;padding:12px 14px}.evidence strong{display:block;color:var(--gold2);font-size:13px;margin-bottom:4px}.evidence span{font-size:12px;color:var(--muted);line-height:1.5}.empty{padding:28px;text-align:center;border:1px dashed var(--line);border-radius:10px;color:var(--muted)}
+    .eyebrow{color:var(--gold2);font-weight:700;font-size:11px;letter-spacing:.24em;text-transform:uppercase}
+    .smoke{position:absolute;z-index:7;inset:0;background:#d8d3d1;opacity:0;pointer-events:none}.smoke.burst{animation:smoke 2.1s ease-in-out}@keyframes smoke{0%{opacity:0}20%{opacity:.96}58%{opacity:.93}100%{opacity:0}}
+    .fade{position:absolute;z-index:8;inset:0;background:#100d12;opacity:0;pointer-events:none;transition:opacity .38s}.fade.on{opacity:1}
+    .ending-card{display:none;position:absolute;z-index:9;inset:0;align-items:center;justify-content:center;text-align:center;padding:25px;background:linear-gradient(#17131a55,#17131adf),url('Images/Backgrounds/Rooftop%20(Finale).png') center/cover}.ending-card.show{display:flex}.ending-inner{max-width:720px}.ending-inner h2{font:700 clamp(38px,6vw,70px)/1.1 'Playfair Display',Georgia,serif;margin:13px}.ending-inner p{font:18px/1.7 'Playfair Display',Georgia,serif;color:#fff1d7}.ending-inner .choice{margin-top:12px}
+    #game.selection-mode .scene-bg:after{background:linear-gradient(180deg,rgba(14,12,16,.35),rgba(14,12,16,.55) 70%,rgba(14,12,16,.8))}
+    @media(max-width:760px){#game{min-height:620px}.topbar{padding:13px 14px}.brand{font-size:10px}.top-actions{gap:5px}.quiet-button{padding:8px 10px;font-size:10px}.scene-label{top:67px;left:15px}.play-area{inset:88px 10px 245px}.bottom-stage{grid-template-columns:115px 1fr;gap:8px;padding:0 10px 12px}.portrait-wrap{height:220px;min-height:180px}.portrait{background-size:300% auto}.dialogue{padding:13px 13px 12px;min-height:164px;border-radius:12px}.line-text{font-size:15px;line-height:1.45;min-height:60px}.choice{font-size:12px;padding:9px 10px}.title-card{margin:0;padding:22px}.title-card h1{font-size:46px}.title-card p{font-size:14px}.modal{padding:17px}}
+    @media(max-width:760px){.character-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:7px}.character-name{font-size:11px}.character-comment{font-size:15px;padding:8px}.play-area{inset:86px 9px 225px}.bottom-stage.solo{padding-top:0}}
+    @media(max-width:460px){.bottom-stage{grid-template-columns:82px 1fr}.portrait-wrap{height:175px;min-height:140px}.portrait{background-size:380% auto}.dialogue{min-height:177px}.line-text{font-size:14px}.brand{letter-spacing:.1em}.quiet-button{padding:7px 8px}.scene-label{font-size:9px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+<main id="game" aria-label="Halloween Heist visual novel game">
+  <div class="scene-bg" id="sceneBg"></div><div class="grain"></div>
+  <header class="topbar"><div class="brand">Brooklyn Nine-Nine · Halloween Heist</div><nav class="top-actions" id="topActions" aria-label="Game controls" hidden><button class="quiet-button" id="helpBtn">How to play</button><button class="quiet-button" id="restartBtn">Restart</button></nav></header>
+  <div class="scene-label" id="sceneLabel">Briefing Room</div>
+  <section class="play-area" id="playArea" aria-label="Click around the room to investigate"></section>
+  <section class="bottom-stage" id="bottomStage" aria-live="polite">
+    <div class="portrait-wrap"><div class="portrait" id="portrait"></div></div>
+    <div class="dialogue"><div class="speaker" id="speaker"></div><div class="line-text" id="lineText"></div><div class="choices" id="choices"></div><div class="hint" id="hint"></div></div>
+  </section>
+  <div class="toast" id="toast" role="status"></div><div class="smoke" id="smoke"></div><div class="fade" id="fade"></div>
+  <section class="ending-card" id="endingCard"><div class="ending-inner"><div class="eyebrow">Case closed · Halloween Heist complete</div><h2>Best Human.<br>Best Detective.</h2><p id="endingText"></p><button class="choice primary" id="playAgain">Play again</button></div></section>
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><div class="modal-head"><h2 id="modalTitle">How to play</h2><button class="close" id="closeModal" aria-label="Close">×</button></div><div id="modalContent"></div></div></div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const A='Images/Backgrounds/';
+  const C='Images/Characters/';
+  const assets={
+    briefing:'Images/scenes/Captain Holt at the NYPD Briefing Podium.png',beltReveal:'Images/scenes/Captain Holt Presents the Golden Cummerbund.png',smoke:'Images/scenes/Smoky Bullpen Championship Belt Display.png',bullpen:A+'Bullpen.png',interrogation:A+'Interrogation Room.png',holt:A+"Holt's Office.png",boyleDesk:A+'Boyle’s Desk.png',rooftop:A+'Rooftop (Finale).png',
+    empty:'Images/scenes/Empty Display Case in the Smoky Precinct.png',locker:'Images/GameArt/Backgrounds/Charles Locker.png',compartment:'Images/GameArt/Backgrounds/Hidden Compartment Revealed.png',jake:'Images/GameArt/Characters/Jake Peralta Final Reveal.png',
+    amy:C+'Amy Santiago_ Halloween Heist Character Sheet.png',holtChar:C+'Captain Raymond Holt Character Sheet.png',boyle:C+'Charles Boyle Character Design Sheet.png',gina:C+'Gina Linetti Character Concept Sheet.png',rosa:C+'Rosa Diaz Character Reference Sheet.png',terry:C+'Terry Jeffords Character Reference Sheet.png',hs:C+'Hitchcock and Scully Character Design Sheet.png'
+  };
+  const el=id=>document.getElementById(id);
+  const state={scene:'briefing',started:false,selectedAmy:false,inGame:false,dialogue:[],line:0,clues:new Set(),met:new Set(),key:false,locker:false,code:[9,9,1],dial:0,askedHolt:false,confession:false};
+  const cast={amy:{name:'Amy Santiago',img:assets.amy,pos:'46% 5%'},holt:{name:'Captain Holt',img:assets.holtChar,pos:'47% 5%'},boyle:{name:'Charles Boyle',img:assets.boyle,pos:'45% 5%'},gina:{name:'Gina Linetti',img:assets.gina,pos:'45% 5%'},rosa:{name:'Rosa Diaz',img:assets.rosa,pos:'45% 5%'},terry:{name:'Terry Jeffords',img:assets.terry,pos:'45% 5%'},hs:{name:'Hitchcock & Scully',img:assets.hs,pos:'45% 5%'},jake:{name:'Jake Peralta',img:assets.jake,pos:'50% 50%'}};
+  const roomNames={briefing:'Briefing Room',bullpen:'Bullpen',beltReveal:'Bullpen',smoke:'Bullpen',empty:'Bullpen',select:'Choose Your Character',interrogation:'Interrogation Room',holt:'Captain Holt’s Office',boyleDesk:'Boyle’s Desk',locker:'Precinct Lockers',compartment:'Hidden Compartment',rooftop:'Rooftop'};
+  const roomImages={briefing:assets.briefing,bullpen:assets.bullpen,beltReveal:assets.beltReveal,smoke:assets.smoke,empty:assets.empty,select:assets.bullpen,interrogation:assets.interrogation,holt:assets.holt,boyleDesk:assets.boyleDesk,locker:assets.locker,compartment:assets.compartment,rooftop:assets.rooftop};
+  let toastTimer;
+  function say(lines,choices=[],speaker='amy',hint=''){
+    state.dialogue=lines.map(x=>typeof x==='string'?{speaker,text:x}:x);state.line=0;
+    el('choices').innerHTML='';el('hint').textContent=hint;
+    if(!state.dialogue.length){el('speaker').textContent='';el('lineText').textContent='';showChoices(choices);return}
+    renderLine(choices);
+  }
+  function renderLine(choices=[]){
+    const item=state.dialogue[state.line];if(!item)return;
+    const person=cast[item.speaker||'amy'];el('speaker').textContent=person.name;el('lineText').textContent=item.text;el('bottomStage').classList.toggle('solo',!state.selectedAmy&&['briefing','beltReveal','smoke','select'].includes(state.scene));
+    el('portrait').style.backgroundImage=person.img?`url("${person.img}")`:'';el('portrait').style.backgroundPosition=person.pos;el('portrait').style.backgroundSize=item.speaker==='jake'?'contain':'';el('portrait').classList.toggle('mystery',!person.img);
+    el('choices').innerHTML='';
+    const advance=()=>{if(state.line<state.dialogue.length-1){state.line++;renderLine(choices)}else showChoices(choices)};
+    const next=document.createElement('button');next.className='choice primary';next.textContent=state.line<state.dialogue.length-1?'Continue ▸':'Continue';next.onclick=advance;el('choices').append(next);
+    el('lineText').onclick=advance;el('lineText').style.cursor='pointer';
+  }
+  function showChoices(choices){el('choices').innerHTML='';el('lineText').onclick=null;el('lineText').style.cursor='';choices.forEach(c=>{const b=document.createElement('button');b.className='choice '+(c.primary?'primary':'');b.textContent=c.label;b.onclick=c.action;el('choices').append(b)});}
+  function setRoom(room){state.scene=room;el('sceneBg').style.backgroundImage=`url("${roomImages[room]}")`;el('sceneBg').style.backgroundSize='cover';el('sceneBg').style.backgroundPosition='center center';el('sceneLabel').textContent=roomNames[room];el('topActions').hidden=!state.inGame;el('game').classList.toggle('selection-mode',room==='select');renderHotspots();}
+  function toast(message){const t=el('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500)}
+  function saveGame(){try{localStorage.setItem('halloweenHeistSave',JSON.stringify({selectedAmy:state.selectedAmy,clues:[...state.clues],met:[...state.met],key:state.key,locker:state.locker,hasCummerbund:!!state.hasCummerbund,confession:state.confession,finished:el('endingCard').classList.contains('show')}))}catch{}}
+  function addClue(id,title,detail){if(state.clues.has(id)){toast('You already recorded that clue.');return false}state.clues.add(id);saveGame();toast(`Clue added: ${title}`);return true}
+  function transition(room,callback){el('fade').classList.add('on');setTimeout(()=>{setRoom(room);if(callback)callback();setTimeout(()=>el('fade').classList.remove('on'),70)},390)}
+  function hotspot(label,x,y,w,h,fn){const b=document.createElement('button');b.className='hotspot';b.style.cssText=`left:${x}%;top:${y}%;width:${w}%;height:${h}%;`;b.setAttribute('aria-label',label);b.innerHTML=`<span class="tip">${label}</span>`;b.onclick=fn;el('playArea').append(b)}
+  function renderHotspots(){
+    const area=el('playArea');area.innerHTML='';
+    if(!state.started)return;
+    if(state.scene==='select'){
+      renderCharacterCards(area);return;
+    } else if(state.scene==='bullpen'){
+      hotspot('Inspect the empty display stand',42,34,13,19,()=>inspectStand());
+      hotspot('Check the surveillance monitor',68,22,12,18,()=>inspectCamera());
+      hotspot('Search Boyle’s desk',3,52,19,30,()=>searchDesk());
+      hotspot('Talk to Terry',23,22,10,30,()=>interrogate('terry'));
+      hotspot('Talk to Boyle',37,20,10,32,()=>interrogate('boyle'));
+      hotspot('Talk to Gina',53,20,10,31,()=>interrogate('gina'));
+      hotspot('Talk to Rosa',63,35,9,26,()=>interrogate('rosa'));
+      hotspot('Talk to Hitchcock and Scully',82,25,13,34,()=>interrogate('hs'));
+      hotspot(state.locker?'Inspect the opened locker':'Inspect the bullpen lockers',84,45,14,31,()=>openLocker());
+      hotspot('Go to Holt’s office',3,18,10,26,()=>goHolt());
+      hotspot('Go to the rooftop',93,3,6,20,()=>{if(state.hasCummerbund){transition('rooftop',finale)}else toast('The rooftop can wait. Find the cummerbund first.')});
+    } else if(state.scene==='interrogation'){
+      hotspot('Return to the bullpen',2,5,18,19,()=>returnBullpen());
+    } else if(state.scene==='holt'){
+      hotspot('Return to the bullpen',3,8,17,21,()=>returnBullpen());
+      hotspot('Inspect Holt’s desk',50,44,24,24,()=>toast('The desk is spotless. Holt would never leave evidence out.'));
+    } else if(state.scene==='boyleDesk'){
+      hotspot('Inspect the desk drawer',40,45,26,24,()=>findKey());
+      hotspot('Return to the bullpen',2,6,17,21,()=>returnBullpen());
+    } else if(state.scene==='locker'){
+      hotspot('Try the locker combination',39,27,28,40,()=>showPuzzle());hotspot('Return to the bullpen',2,6,18,18,()=>returnBullpen());
+    } else if(state.scene==='compartment'){
+      hotspot('Take the championship cummerbund',39,30,30,38,()=>takeCummerbund());
+    } else if(state.scene==='rooftop'){
+      hotspot('Speak to Jake',43,30,22,48,()=>finale());
+    }
+  }
+  function renderCharacterCards(area){
+    const options=[
+      {id:'terry',name:'Terry Jeffords',image:assets.terry,remark:'Too many muscles. This ain’t you.'},
+      {id:'boyle',name:'Charles Boyle',image:assets.boyle,remark:'You’re not as sassy as him, so no.'},
+      {id:'gina',name:'Gina Linetti',image:assets.gina,remark:'No one can be Gina.'},
+      {id:'rosa',name:'Rosa Diaz',image:assets.rosa,remark:'You’re too sweet and innocent to be Rosa.'},
+      {id:'hs',name:'Hitchcock & Scully',image:assets.hs,remark:'Duhhh? Seriously?',pair:true},
+      {id:'amy',name:'Amy Santiago',image:assets.amy,remark:'That’s my girl. Now win it.'}
+    ];
+    const grid=document.createElement('div');grid.className='character-grid';
+    options.forEach(option=>{
+      const button=document.createElement('button');button.type='button';button.className='character-card'+(option.pair?' pair':'');button.setAttribute('aria-label',`${option.name}. ${option.remark}`);
+      const image=document.createElement('img');image.src=option.image;image.alt=`${option.name} character reference sheet`;
+      const name=document.createElement('span');name.className='character-name';name.textContent=option.name;
+      const comment=document.createElement('span');comment.className='character-comment';comment.textContent=option.remark;
+      button.append(image,name,comment);button.onclick=()=>pickCharacter(option.id);grid.append(button);
+    });
+    area.append(grid);
+  }
+  function opening(){
+    state.started=true;state.inGame=false;setRoom('briefing');
+    say([{speaker:'holt',text:'Detectives, tonight’s Halloween Heist has one rule: whoever finds the Championship Cummerbund by midnight will be named the winner.'},{speaker:'holt',text:'Keep your eyes open. The heist begins now.'}], [{label:'Continue',primary:true,action:showBelt}], 'holt');
+  }
+  function showBelt(){
+    transition('beltReveal',()=>say([{speaker:'holt',text:'The Championship Cummerbund. The finest prize the Nine-Nine has ever fought over.'},{speaker:'holt',text:'I am leaving it right here in the bullpen. Midnight. Winner takes the title.'}], [{label:'Continue',primary:true,action:showSmoke}], 'holt'));
+  }
+  function showSmoke(){
+    transition('smoke',()=>{el('smoke').classList.remove('burst');void el('smoke').offsetWidth;el('smoke').classList.add('burst');say([{speaker:'amy',text:'Smoke! I can barely see the display!'}], [{label:'Continue',primary:true,action:showAfterSmoke}], 'amy')});
+  }
+  function showAfterSmoke(){
+    transition('empty',()=>say([{speaker:'holt',text:'Now, which one of you did this? Whoever finds it by midnight will be named the winner.'}], [{label:'Continue',primary:true,action:enterCharacterSelect}], 'holt'));
+  }
+  function enterCharacterSelect(){
+    transition('select',characterSelectIntro);
+  }
+  function characterSelectIntro(){
+    say([{speaker:'holt',text:'Choose the character you want to play as.'}], [], 'holt','Hover over each character to see Amy’s verdict, then click your choice.');
+  }
+  function pickCharacter(who){
+    const remarks={jake:'Nice try, Peralta. This is Amy’s heist.',terry:'Too many muscles. This ain’t you.',boyle:'You’re not as sassy as him, so no.',gina:'No one can be Gina.',rosa:'You’re too sweet and innocent to be Rosa.',hs:'Duhhh? Seriously?'};
+    if(who!=='amy'){
+      say([{speaker:'amy',text:remarks[who]}], [{label:'Choose again',action:characterSelectIntro}], 'amy','Try another character.');
+      return;
+    }
+    state.selectedAmy=true;saveGame();
+    say([{speaker:'amy',text:'That’s my girl. Now win it.'}], [{label:'Continue',primary:true,action:()=>{state.inGame=true;transition('bullpen',bullpenIntro)}}], 'amy');
+  }
+  function bullpenIntro(){say([{speaker:'amy',text:'I should establish the timeline, inspect the scene, and hear everyone’s alibi before making an accusation.'}],[], 'amy','Click the squad, the monitor, the empty stand, Boyle’s desk, or a precinct destination.');}
+  function inspectStand(){if(addClue('stand','The empty display stand','The stand is undamaged. The thief knew exactly where the cummerbund would be and moved quickly.'))say([{speaker:'amy',text:'No broken glass, no struggle. This was planned by someone who knew the room.'}],[], 'amy','');}
+  function inspectCamera(){if(!state.met.has('rosa')){say([{speaker:'amy',text:'I should ask Rosa about the camera system first. She mentioned it might help.'}],[], 'amy');return}if(addClue('camera','A gap in the surveillance','The feed catches a figure slipping behind the desks during the smoke. One frame shows a distinctive food container and a familiar Boyle family recipe card.'))say([{speaker:'amy',text:'The camera caught someone near Boyle’s desk. The face is obscured, but that recipe card is not exactly subtle.'},{speaker:'rosa',text:'Told you the camera was useful. I’m going back to ignoring everyone.'}],[], 'amy');}
+  function searchDesk(){if(!state.clues.has('camera')){say([{speaker:'amy',text:'Boyle’s desk is crowded with recipes and paperwork. I need a reason to search it properly.'}],[], 'amy','Ask Rosa about the surveillance camera, then review the footage.');return}if(addClue('desk','Boyle’s desk and a spare key tag','A drawer has fresh scrape marks. Inside: a blank locker key tag and a note in Boyle’s handwriting: “Holt said keep it safe until the rooftop.”'))say([{speaker:'amy',text:'Fresh marks, a locker tag, and Boyle’s handwriting. That is enough to ask some very direct questions.'}],[], 'amy');}
+  function interrogate(who){
+    if(state.met.has(who)){say([{speaker:who,text:repeatLine(who)}],suspectChoices(who),who);return}
+    state.met.add(who);
+    const lines={
+      terry:[{speaker:'terry',text:'Heists suck. They create paperwork, and Terry already has enough paperwork. Terry was in the break room keeping the squad snacks from becoming a workplace incident.'}],
+      boyle:[{speaker:'boyle',text:'Me? I would never! I was nowhere near the cummerbund. I was, uh, checking on the lasagna.'},{speaker:'amy',text:'You said “lasagna” before I asked where you were.'}],
+      gina:[{speaker:'gina',text:'Amy, your interrogation posture is very intense. It is giving “binder with legs.” I was at my desk, being the only person here with a personal brand.'}],
+      rosa:[{speaker:'rosa',text:'No. I was on a call with Pimento. The camera feed may have caught something. Check it if you want; I’m not narrating my alibi twice.'}],
+      hs:[{speaker:'hs',text:'We didn’t take anything. Our lasagna is in the microwave, and we have three minutes to get ice cream or we’ll be late.'}]
+    };
+    say(lines[who],suspectChoices(who),who,who==='rosa'?'Rosa pointed you to the surveillance monitor.':'Choose SUS to challenge the alibi, or NO SUS to clear them for now.');
+  }
+  function repeatLine(who){return {terry:'Terry has no new information. He remains anti-heist.',boyle:'Boyle is sweating over the lasagna explanation.',gina:'Gina is done being interviewed unless there is better lighting.',rosa:'Rosa already told you: check the camera.',hs:'The lasagna and ice cream schedule remains urgent.'}[who]}
+  function suspectChoices(who){return [{label:'SUS — challenge the alibi',action:()=>accuse(who)},{label:'NO SUS — return to the bullpen',action:()=>returnBullpen()}]}
+  function accuse(who){
+    if(who==='boyle'){
+      if(!state.clues.has('camera')||!state.clues.has('desk')){say([{speaker:'amy',text:'I suspect Boyle, but suspicion is not evidence. I need the surveillance clue and a link to the locker before I accuse him.'}], [{label:'Keep investigating',primary:true,action:returnBullpen}], 'amy');return}
+      state.confession=true;transition('interrogation',()=>say([{speaker:'amy',text:'The camera puts you by your desk during the smoke, and I found the locker tag and your note. Charles, tell me what happened.'},{speaker:'boyle',text:'Okay, yes. I took it. Captain Holt told me to hide it in my desk. I thought it was part of the plan!'},{speaker:'amy',text:'Then Holt’s office is next.'}], [{label:'Go to Holt’s office',primary:true,action:goHolt}], 'amy'));return;
+    }
+    const lines={terry:'Terry would rather file a complaint about the heist than win one.',gina:'Gina raises an eyebrow. “If I stole it, you would never find it. Also, I would have accessorized it.”',rosa:'Rosa stares at you. “No.” The camera is still the better lead.',hs:'Hitchcock and Scully protest that the microwave timer is the only thing they are guilty of.'};
+    say([{speaker:'amy',text:lines[who]},{speaker:'amy',text:'That alibi holds up. I should keep looking.'}], [{label:'Return to the bullpen',primary:true,action:returnBullpen}], 'amy');
+  }
+  function returnBullpen(){transition('bullpen',()=>bullpenIntro())}
+  function goHolt(){if(!state.confession){toast('Get Boyle’s account before confronting the Captain.');return}state.askedHolt=true;transition('holt',()=>say([{speaker:'amy',text:'Sir, if you stop acting for a second: where is the cummerbund? Charles told me you asked him to hide it.'},{speaker:'holt',text:'How dare you, Detective Santiago, accuse me on the word of the second-dumbest man in this precinct. Why would I team up with him? Cheddar is a better team player and has better taste in food.'},{speaker:'amy',text:'I’m sorry, sir. I’ll return to the bullpen and verify his story.'}], [{label:'Back to the bullpen',primary:true,action:()=>transition('bullpen',()=>charlesTruth())}], 'amy'))}
+  function charlesTruth(){state.confession=true;saveGame();say([{speaker:'boyle',text:'Amy, I have to tell you the truth. Jake asked me to lie about Holt. He already ran off. I’m sorry.'},{speaker:'amy',text:'You and Jake planned this together? Where did he put the cummerbund?'},{speaker:'boyle',text:'He said the locker. I kept the key in my desk. I thought it was just a weird Jake thing.'}], [{label:'Search Boyle’s desk',primary:true,action:()=>transition('boyleDesk',()=>say([{speaker:'amy',text:'Let’s see what Charles left behind.'}],[], 'amy'))}], 'amy')}
+  function findKey(){if(!state.confession){toast('You do not have a reason to search this desk yet.');return}if(state.key){toast('You already found the locker key.');return}state.key=true;saveGame();addClue('key','A small brass locker key','The tag is stamped 99. It fits one of the bullpen lockers.');say([{speaker:'amy',text:'A brass key stamped 99. Jake used the precinct number. Back to the lockers.'}], [{label:'Return to the bullpen',primary:true,action:returnBullpen}], 'amy')}
+  function openLocker(){if(!state.key){say([{speaker:'amy',text:'The locker is secured. I need the key Boyle kept in his desk.'}],[], 'amy');return}transition('locker',()=>say([{speaker:'amy',text:'The key fits. There is a three-number combination lock inside the locker.'}], [{label:'Try the combination',primary:true,action:showPuzzle}], 'amy'))}
+  function showPuzzle(){
+    state.dial=0;function prompt(){const labels=['first digit','second digit','third digit'];say([{speaker:'amy',text:`The lock has three dials. Remember: precinct 99, one prize. Set the ${labels[state.dial]}.`}],[], 'amy','Choose a number for each dial.');
+      const row=el('choices');row.innerHTML='';[1,2,3,4,5,6,7,8,9,0].forEach(n=>{const b=document.createElement('button');b.className='choice';b.textContent=n;b.onclick=()=>{if(n!==state.code[state.dial]){toast('That dial does not fit the clue. Try again.');state.dial=0;prompt();return}state.dial++;if(state.dial<3)prompt();else{state.locker=true;saveGame();addClue('locker','The locker opens','The combination is 9-9-1: precinct 99, one missing prize.');transition('compartment',()=>say([{speaker:'amy',text:'Nine-nine-one. The panel clicks open. And there it is—the Championship Cummerbund.'}], [{label:'Take the cummerbund',primary:true,action:takeCummerbund}], 'amy'))}};row.append(b)});
+    }prompt();
+  }
+  function takeCummerbund(){state.hasCummerbund=true;saveGame();toast('Championship Cummerbund added');transition('rooftop',finale)}
+  function finale(){if(state.scene!=='rooftop')return;say([{speaker:'amy',text:'Jake! I found it.'},{speaker:'jake',text:'You solved it, Ames. Charles helped me set up the clues, and Holt was in on the surprise.'},{speaker:'amy',text:'You made me investigate the Captain, question my friends, and crack a locker. This better be a very good surprise.'},{speaker:'jake',text:'To Amy Santiago: Best Human. Best Detective. You beat the whole Nine-Nine.'}], [{label:'Take the title',primary:true,action:showEnding}], 'amy');}
+  function showEnding(){el('endingText').textContent='Jake raises a toast. The squad cheers. The Championship Cummerbund is yours—and the Nine-Nine’s Best Human has officially been named.';el('endingCard').classList.add('show');saveGame()}
+  function openModal(title,html){el('modalTitle').textContent=title;el('modalContent').innerHTML=html;el('modalBackdrop').classList.add('open')}
+  function help(){openModal('How to play',`<p><strong>Read:</strong> press Continue or click the dialogue to advance.</p><p><strong>Investigate:</strong> click the people and objects marked in the room. Hover over them to see what you can do.</p><p><strong>Follow clues:</strong> talk to Rosa, inspect the surveillance monitor, then search Boyle’s desk. You need both clues before accusing Boyle.</p><p>The locker code comes from the precinct number and the one missing prize.</p>`)}
+  function reset(force=false){if(!force&&!confirm('Restart the heist from the beginning?'))return;try{localStorage.removeItem('halloweenHeistSave')}catch{}state.scene='briefing';state.started=false;state.selectedAmy=false;state.inGame=false;state.dialogue=[];state.line=0;state.clues.clear();state.met.clear();state.key=false;state.locker=false;state.hasCummerbund=false;state.confession=false;state.askedHolt=false;el('endingCard').classList.remove('show');el('choices').innerHTML='';el('speaker').textContent='';el('lineText').textContent='';el('portrait').style.backgroundImage='none';el('portrait').classList.remove('mystery');opening()}
+  el('helpBtn').onclick=help;el('restartBtn').onclick=()=>reset(false);el('closeModal').onclick=()=>el('modalBackdrop').classList.remove('open');el('modalBackdrop').onclick=e=>{if(e.target===el('modalBackdrop'))el('modalBackdrop').classList.remove('open')};el('playAgain').onclick=()=>reset(true);
+  window.addEventListener('keydown',e=>{if(e.key==='Escape'){el('modalBackdrop').classList.remove('open');if(el('endingCard').classList.contains('show'))return}});
+  try{const saved=JSON.parse(localStorage.getItem('halloweenHeistSave')||'null');if(saved&&saved.selectedAmy){state.started=true;state.selectedAmy=true;state.inGame=true;state.clues=new Set(saved.clues||[]);state.met=new Set(saved.met||[]);state.key=!!saved.key;state.locker=!!saved.locker;state.hasCummerbund=!!saved.hasCummerbund;state.confession=!!saved.confession;setRoom('bullpen');if(saved.finished)showEnding();else bullpenIntro()}else opening()}catch{opening()}
+})();
+</script>
+</body>
+</html>
