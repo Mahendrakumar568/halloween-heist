@@ -28,7 +28,7 @@ let roamCtx = null;     // free-roam context {done, resolve}
 let advanceResolve = null, typing = null, choiceResolve = null;
 let modalCtx = null;
 
-const settings = Object.assign({ music: 0.55, sfx: 0.8, speed: 'normal', reduce: false }, store.get(SET_KEY, {}));
+const settings = Object.assign({ music: 0.55, sfx: 0.8, speed: 'normal', reduce: false, voices: true, voiceVol: 1, narration: true }, store.get(SET_KEY, {}));
 const achieved = store.get(ACH_KEY, {});
 const SPEEDS = { slow: 42, normal: 22, fast: 9, instant: 0 };
 function applySettings() {
@@ -260,11 +260,73 @@ function showLine(p) {
   $('choices').innerHTML = '';
 }
 function hideDialogue() {
+  Voice.stop();
   $('dialogue').hidden = true;
   document.body.classList.remove('talking');
   $('choices').innerHTML = '';
   lastPortrait = '';
 }
+/* ---------- spoken dialogue (browser speech synthesis) ---------- */
+const Voice = (() => {
+  const synth = window.speechSynthesis;
+  const ok = !!(synth && window.SpeechSynthesisUtterance);
+  // gender, pitch (0-2), rate (0.1-10) per speaker
+  const PROFILE = {
+    amy:       { g: 'f', pitch: 1.15, rate: 1.08 },
+    gina:      { g: 'f', pitch: 1.0,  rate: 1.0 },
+    rosa:      { g: 'f', pitch: 0.75, rate: 0.95 },
+    holt:      { g: 'm', pitch: 0.55, rate: 0.82 },
+    terry:     { g: 'm', pitch: 0.7,  rate: 1.02 },
+    boyle:     { g: 'm', pitch: 1.35, rate: 1.15 },
+    jake:      { g: 'm', pitch: 1.05, rate: 1.15 },
+    hitchcock: { g: 'm', pitch: 0.65, rate: 0.85 },
+    scully:    { g: 'm', pitch: 0.95, rate: 0.88 },
+    narrator:  { g: 'n', pitch: 0.9,  rate: 0.98 },
+  };
+  const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|aria|jenny|michelle|susan|hazel|libby|sonia|serena|allison|ava|kate|google us english|google uk english female/i;
+  const MALE = /\bmale\b|daniel|alex|david|mark|guy|fred|ryan|thomas|george|aaron|arthur|christopher|eric|roger|tom|oliver|google uk english male/i;
+  let cast = {};
+  function pick() {
+    if (!ok) return;
+    const all = synth.getVoices().filter(v => /^en(-|_|$)/i.test(v.lang));
+    if (!all.length) return;
+    const fem = all.filter(v => FEMALE.test(v.name) && !/\bmale\b/i.test(v.name.replace(/female/i, '')));
+    const mal = all.filter(v => MALE.test(v.name) && !FEMALE.test(v.name));
+    const pool = { f: fem.length ? fem : all, m: mal.length ? mal : all, n: mal.length ? mal : all };
+    const used = { f: 0, m: 0, n: 0 };
+    cast = {};
+    // spread different voices across characters when the device has several
+    for (const [who, p] of Object.entries(PROFILE)) {
+      const list = pool[p.g];
+      cast[who] = list[used[p.g]++ % list.length];
+    }
+  }
+  if (ok) { pick(); synth.onvoiceschanged = pick; }
+  function clean(text) {
+    return text.replace(/\*/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/…/g, '... ').replace(/—/g, ', ').trim();
+  }
+  return {
+    ok,
+    speak(who, text) {
+      if (!ok || !settings.voices) return;
+      if (!who && !settings.narration) return;
+      const words = clean(text);
+      if (!words || /^\.+$/.test(words)) return;
+      try {
+        synth.cancel();
+        const p = PROFILE[who || 'narrator'];
+        const u = new SpeechSynthesisUtterance(words);
+        if (!cast[who || 'narrator']) pick();
+        const v = cast[who || 'narrator'];
+        if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+        u.pitch = p.pitch; u.rate = p.rate; u.volume = settings.voiceVol;
+        synth.speak(u);
+      } catch (e) { /* speech is optional */ }
+    },
+    stop() { if (ok) try { synth.cancel(); } catch (e) { /* ignore */ } },
+    speaking() { return ok && settings.voices && synth.speaking; },
+  };
+})();
 function typeText(text, who) {
   const el = $('dlgText');
   el.className = 'dlg-text' + (who ? '' : ' narr');
@@ -288,7 +350,7 @@ function typeText(text, who) {
       if (i >= spans.length) return finish();
       spans[i].style.opacity = 1;
       const c = chars[i];
-      if (c && c.trim() && i % 3 === 0) { if (who) Audio.sfx('blip', pitch); else Audio.sfx('key'); }
+      if (c && c.trim() && i % 3 === 0 && !(Voice.ok && settings.voices)) { if (who) Audio.sfx('blip', pitch); else Audio.sfx('key'); }
       i++;
     }, delay);
     typing = { finish };
@@ -298,6 +360,7 @@ async function line(raw, keep = false) {
   const tok = RUN;
   const p = parse(raw);
   showLine(p);
+  if (p.text) Voice.speak(p.who, p.text);
   await typeText(p.text, p.who);
   if (tok !== RUN) throw ABORT;
   if (keep) return;
@@ -309,7 +372,7 @@ async function line(raw, keep = false) {
 async function say(...lines) { for (const l of lines.flat()) if (l) await line(l); }
 function advance() {
   if (typing) { typing.finish(); return; }
-  if (advanceResolve) { const r = advanceResolve; advanceResolve = null; Audio.sfx('click'); r(); }
+  if (advanceResolve) { const r = advanceResolve; advanceResolve = null; Voice.stop(); Audio.sfx('click'); r(); }
 }
 async function choose(options, { q = '', ask = '' } = {}) {
   const tok = RUN;
@@ -325,7 +388,7 @@ async function choose(options, { q = '', ask = '' } = {}) {
       b.className = 'choice ' + (o.cls || '');
       b.innerHTML = `${esc(o.label)}${shown.length > 1 && i < 9 ? ` <kbd>${i + 1}</kbd>` : ''}`;
       b.style.animationDelay = `${i * 50}ms`;
-      b.onclick = e => { e.stopPropagation(); Audio.sfx('click'); choiceResolve = null; resolve(o.value); };
+      b.onclick = e => { e.stopPropagation(); Voice.stop(); Audio.sfx('click'); choiceResolve = null; resolve(o.value); };
       b.onmouseenter = () => Audio.sfx('hover');
       box.append(b);
     });
@@ -644,11 +707,18 @@ function openSettings(back) {
     <div class="set-row"><label for="sMusic">Music</label><input id="sMusic" type="range" min="0" max="1" step="0.05" value="${settings.music}"></div>
     <div class="set-row"><label for="sSfx">Sound effects</label><input id="sSfx" type="range" min="0" max="1" step="0.05" value="${settings.sfx}"></div>
     <div class="set-row"><label>Text speed</label><div class="seg">${seg}</div></div>
+    <div class="set-row"><label for="sVoices">Character voices</label><input id="sVoices" type="checkbox" ${settings.voices ? 'checked' : ''} ${Voice.ok ? '' : 'disabled'}></div>
+    <div class="set-row"><label for="sVoiceVol">Voice volume</label><input id="sVoiceVol" type="range" min="0" max="1" step="0.05" value="${settings.voiceVol}"></div>
+    <div class="set-row"><label for="sNarr">Read narration aloud</label><input id="sNarr" type="checkbox" ${settings.narration ? 'checked' : ''}></div>
+    ${Voice.ok ? '' : '<p style="color:var(--muted);font-size:13px">This browser does not support spoken voices.</p>'}
     <div class="set-row"><label for="sReduce">Reduce motion</label><input id="sReduce" type="checkbox" ${settings.reduce ? 'checked' : ''}></div>
     ${back ? '<div style="margin-top:16px"><button class="btn" id="setBack">Back</button></div>' : ''}`, { narrow: true });
   $('sMusic').oninput = e => { settings.music = +e.target.value; applySettings(); };
   $('sSfx').oninput = e => { settings.sfx = +e.target.value; applySettings(); Audio.sfx('click'); };
   $('sReduce').onchange = e => { settings.reduce = e.target.checked; applySettings(); };
+  $('sVoices').onchange = e => { settings.voices = e.target.checked; applySettings(); if (!settings.voices) Voice.stop(); else Voice.speak('amy', 'Voices on.'); };
+  $('sVoiceVol').onchange = e => { settings.voiceVol = +e.target.value; applySettings(); Voice.speak('amy', 'Like this?'); };
+  $('sNarr').onchange = e => { settings.narration = e.target.checked; applySettings(); };
   $('modalBody').querySelectorAll('[data-speed]').forEach(b => b.onclick = () => { settings.speed = b.dataset.speed; applySettings(); openSettings(back); });
   if (back) $('setBack').onclick = back;
 }
