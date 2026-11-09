@@ -93,6 +93,10 @@
       [45, 52, 57, 60, 64].forEach(m => tone({ f: hz(m), d: 4.5, type: 'sawtooth', g: 0.035, cutoff: 1400, a: 0.02 }));
       tone({ f: hz(93), t: 0.05, d: 3.5, g: 0.04 }); tone({ f: hz(100), t: 0.1, d: 3.2, g: 0.025 });
     },
+    shatter: () => {
+      noise({ d: 0.5, g: 0.5, from: 9000, to: 2500, type: 'highpass', a: 0.002 }); noise({ d: 0.25, g: 0.4, from: 1800, to: 300, type: 'lowpass', a: 0.002 });
+      for (let i = 0; i < 22; i++) tone({ f: 2500 + Math.random() * 5500, t: 0.02 + Math.random() * 0.9 * Math.random(), d: 0.08 + Math.random() * 0.2, g: 0.03 + Math.random() * 0.04, type: 'sine' });
+    },
     teletype: () => { noise({ d: 0.025, g: 0.2, from: 5000, to: 3500, q: 3 }); tone({ f: 2200 + Math.random() * 400, d: 0.02, type: 'square', g: 0.015 }); },
     siren: () => { for (let i = 0; i < 3; i++) { tone({ f: 640, t: i * 0.9, d: 0.45, type: 'sine', g: 0.025, slide: 1.35, a: 0.1 }); tone({ f: 860, t: i * 0.9 + 0.45, d: 0.45, type: 'sine', g: 0.025, slide: 0.75, a: 0.05 }); } },
     crackle: () => { for (let i = 0; i < 10; i++) noise({ t: i * 0.05, d: 0.05, g: 0.12, from: 2000 + Math.random() * 3000, to: 1500 }); },

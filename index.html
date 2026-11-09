@@ -70,12 +70,8 @@
     </div>
     <div class="intro-reel" id="introReel" hidden>
       <div class="cam" id="introCam">
-        <div class="shot" id="shotA"></div><div class="shot" id="shotB"></div>
-        <div class="lights" id="introLights"><i class="r"></i><i class="b"></i></div>
-        <div class="cctv" id="introCctv"><span class="rec">● REC</span><span class="camid">CAM 04 · EVIDENCE LOCKER</span><span class="tc" id="introTc">22:59:41:00</span><i class="scan"></i></div>
-        <div class="lineup" id="introLineup"></div>
-        <div class="bigclock" id="introClock"><span id="introClockT">10:59:55</span><small>PM · Halloween</small></div>
-        <img class="amy-sil" id="introAmy" alt="">
+        <canvas id="intro3d" aria-hidden="true"></canvas>
+        <div class="cctv" id="introCctv"><span class="rec">● REC</span><span class="camid">CAM 04 · TROPHY ROOM</span><span class="tc" id="introTc">22:59:41:00</span><i class="scan"></i></div>
         <div class="intro-logo" id="introLogo">
           <div class="shock"></div>
           <div class="il-kicker">The 99th Precinct presents</div>
@@ -129,6 +125,8 @@
   <div id="fade"></div>
   <div id="rotate-hint">Turn your phone sideways for the best view</div>
 </div>
+<script type="importmap">{"imports":{"three":"./js/vendor/three/three.module.min.js","three/addons/":"./js/vendor/three/addons/"}}</script>
+<script type="module" src="js/intro3d.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>

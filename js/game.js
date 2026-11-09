@@ -1933,21 +1933,15 @@ const Intro = (() => {
   async function typeCap(stamp, line, id) {
     const cap = $('introCap'); cap.classList.add('on');
     $('introStamp').textContent = ''; $('introLine').textContent = line;
-    for (const ch of stamp) { $('introStamp').textContent += ch; if (ch !== ' ') Audio.sfx('teletype'); await wait(28, id); }
     $('introLine').classList.remove('in'); void $('introLine').offsetWidth; $('introLine').classList.add('in');
     Voice.speak(null, line);
+    for (const ch of stamp) { $('introStamp').textContent += ch; if (ch !== ' ') Audio.sfx('teletype'); await wait(26, id); }
   }
   const hideCap = () => $('introCap').classList.remove('on');
-  let front = 'shotA';
-  function cut(img, cls = '') {
-    const next = front === 'shotA' ? 'shotB' : 'shotA';
-    const el = $(next);
-    el.style.backgroundImage = `url(${IMG(img)})`;
-    el.className = 'shot'; void el.offsetWidth; el.className = 'shot on ' + cls;
-    $(front).classList.remove('on');
-    front = next;
-  }
-  const readTime = line => 1500 + line.length * 60;
+  const readTime = line => 1400 + line.length * 58;
+  const G = () => window.Intro3D || null;
+  const beat = name => { const g = G(); if (g) g.beat(name); };
+  const blink = async (id, ms = 260) => { set('black'); await wait(ms, id); set('black', false); };
 
   function finish() {
     if (done) return; done = true; run++;
@@ -1956,7 +1950,7 @@ const Intro = (() => {
     el.classList.add('out');
     $('title').classList.remove('waiting');
     Audio.init(); Audio.music('title');
-    setTimeout(() => { el.hidden = true; fx.stop(); }, 1200);
+    setTimeout(() => { el.hidden = true; fx.stop(); const g = G(); if (g) g.dispose(); }, 1200);
   }
   async function play() {
     if (started) return; started = true;
@@ -1968,69 +1962,67 @@ const Intro = (() => {
     setTimeout(() => { $('introGate').hidden = true; }, 1100);
     reel().hidden = false;
     if (settings.reduce) set('still');
+    if (!G()) set('flat');
+    beat('trophy'); if (G()) G().start();
     try {
-      await wait(1300, id);
+      await wait(1200, id);
       Audio.music('intro');
-      set('rolling');
-      // 1. the precinct, police lights sweeping
-      cut('bullpen', 'push');
-      set('police'); Audio.sfx('siren');
-      await wait(900, id);
+      set('rolling'); set('live');
+      // 1. the prize under glass, police lights washing the room
+      Audio.sfx('siren');
+      await wait(1300, id);
       let line = 'Every Halloween, the Nine-Nine fights for one title.';
       await typeCap('BROOKLYN · 99TH PRECINCT · 10:58 PM', line, id);
       await wait(readTime(line), id);
-      hideCap(); set('police', false);
-      await wait(400, id);
-      // 2. security camera: the locker is empty
-      Audio.sfx('crackle');
-      cut('lockers', 'cctvshot'); set('cctv');
+      hideCap();
+      await wait(600, id);
+      // 2. lights out, glass breaks: the case is empty
+      set('black'); Audio.sfx('door'); Audio.sfx('shatter');
+      await wait(650, id);
+      beat('theft'); set('black', false); set('cctv'); boom(false); G() && G().hit();
       const tc = setInterval(() => { const t = $('introTc'); const f = (+t.dataset.f || 0) + 1; t.dataset.f = f; const sec = 41 + Math.floor(f / 24); t.textContent = `22:59:${String(sec % 60).padStart(2, '0')}:${String(f % 24).padStart(2, '0')}`; }, 42);
-      await wait(700, id).catch(e => { clearInterval(tc); throw e; });
-      line = 'Tonight, the prize has vanished.';
-      await typeCap('EVIDENCE LOCKER · 10:59 PM', line, id).catch(e => { clearInterval(tc); throw e; });
-      await wait(readTime(line), id).catch(e => { clearInterval(tc); throw e; });
-      clearInterval(tc);
-      Audio.sfx('crackle'); boom(false);
-      set('cctv', false); hideCap();
-      // 3. the lineup: six suspects slam in
-      cut('interrogation', 'dark');
+      try {
+        await wait(900, id);
+        line = 'Tonight, the prize has vanished.';
+        await typeCap('TROPHY ROOM · 10:59 PM · ALARM', line, id);
+        await wait(readTime(line) + 400, id);
+      } finally { clearInterval(tc); }
+      hideCap(); Audio.sfx('crackle');
+      await blink(id, 350);
+      set('cctv', false);
+      // 3. the lineup: six silhouettes slam down under the lights
+      beat('lineup');
       await wait(500, id);
-      const SUS = [['jake', 'neutral', 'Peralta'], ['rosa', 'intimidating', 'Diaz'], ['boyle', 'excited', 'Boyle'], ['gina', 'judging', 'Linetti'], ['terry', 'serious', 'Jeffords'], ['holt', 'eyebrow', 'Holt']];
-      const lu = $('introLineup');
-      lu.innerHTML = SUS.map(([w, f, n], i) => `<figure style="--i:${i}"><img src="${portrait(w, f)}" alt=""><figcaption>${n}</figcaption><b>Suspect</b></figure>`).join('');
-      set('lineup');
-      for (let i = 0; i < SUS.length; i++) {
-        lu.children[i].classList.add('in'); Audio.sfx('thud', 1 + i * 0.06);
+      for (let i = 0; i < 6; i++) {
+        G() && G().drop(i);
         await wait(300, id);
+        Audio.sfx('thud', 1 + i * 0.05); G() && G().hit();
+        await wait(150, id);
       }
       line = 'Six suspects. Every one of them is lying.';
-      await typeCap('INTERVIEW ROOM 2', line, id);
-      await wait(readTime(line), id);
-      lu.classList.add('scatter'); hideCap();
-      await wait(500, id);
-      set('lineup', false);
-      // 4. the clock hits eleven: sixty minutes left
-      cut('smoke', 'slow');
-      set('clock');
-      const ct = $('introClockT');
-      for (let s = 55; s <= 60; s++) {
-        ct.textContent = s < 60 ? `10:59:${s}` : '11:00:00';
-        if (s < 60) { Audio.sfx('tick'); if (s % 2) Audio.sfx('heartbeat'); await wait(560, id); }
+      await typeCap('INTERVIEW ROOM 2 · LINEUP', line, id);
+      await wait(readTime(line) + 300, id);
+      hideCap();
+      await blink(id, 300);
+      // 4. the clock strikes eleven: sixty minutes to midnight
+      beat('clock');
+      await wait(700, id);
+      for (let sec = 55; sec <= 60; sec++) {
+        G() && G().tick(sec);
+        if (sec < 60) { Audio.sfx('tick'); if (sec % 2) Audio.sfx('heartbeat'); await wait(600, id); }
       }
-      set('alarm'); Audio.sfx('sting'); boom(false);
-      $('introAmy').src = portrait('amy', 'determined'); set('amy');
+      G() && G().alarm(); G() && G().hit(); Audio.sfx('sting'); boom(false);
       line = 'One detective. Sixty minutes. No excuses.';
-      await typeCap('DETECTIVE AMY SANTIAGO', line, id);
+      await typeCap('DETECTIVE AMY SANTIAGO · 11:00 PM', line, id);
       await wait(readTime(line), id);
       hideCap();
-      // 5. silence, riser, then the logo hits
-      set('clock', false); set('alarm', false); set('amy', false);
-      ['shotA', 'shotB'].forEach(x => $(x).classList.remove('on'));
-      Audio.music(null);
-      await wait(500, id);
+      // 5. silence, a riser, then the title hits
+      set('black'); Audio.music(null);
+      await wait(400, id);
       Audio.sfx('riser', 1.9);
       await wait(1900, id);
-      Audio.sfx('impact'); boom(); fx.start(0.6); fx.burst(320);
+      beat('finale'); set('black', false);
+      Audio.sfx('impact'); boom(); G() && G().boom(); fx.start(0.6); fx.burst(260);
       set('logo');
       await wait(1300, id);
       Audio.sfx('reveal');
