@@ -83,6 +83,18 @@
     sad: () => { [64, 63, 62, 59].forEach((m, i) => tone({ f: hz(m), t: i * 0.35, d: 0.6, type: 'triangle', g: 0.12 })); },
     cheer: () => { for (let i = 0; i < 14; i++) noise({ t: i * 0.06, d: 0.9, g: 0.08, from: 900 + Math.random() * 1500, to: 600, q: 2 }); },
     clink: () => { tone({ f: 2400, d: 0.6, g: 0.1 }); tone({ f: 3150, d: 0.5, g: 0.06 }); tone({ f: 2420, t: 0.12, d: 0.7, g: 0.08 }); },
+    // cinematic intro hits
+    thud: (k = 1) => { tone({ f: 62 * k, d: 0.55, g: 0.55, slide: 0.45 }); noise({ d: 0.18, g: 0.22, from: 700, to: 90, type: 'lowpass' }); tone({ f: 1800 * k, d: 0.05, type: 'square', g: 0.02, cutoff: 3000 }); },
+    heartbeat: () => { tone({ f: 55, d: 0.28, g: 0.5, slide: 0.6 }); tone({ f: 50, t: 0.22, d: 0.32, g: 0.38, slide: 0.6 }); },
+    riser: (d = 2) => { noise({ d, g: 0.22, from: 250, to: 7000, q: 1.4, a: d * 0.95 }); tone({ f: 110, d, type: 'sawtooth', g: 0.05, slide: 4, cutoff: 2400, a: d * 0.9 }); tone({ f: 165, d, type: 'sawtooth', g: 0.035, slide: 4, cutoff: 2400, a: d * 0.9 }); },
+    impact: () => {
+      tone({ f: 48, d: 2.6, g: 0.7, slide: 0.4 }); tone({ f: 96, d: 1.2, type: 'triangle', g: 0.3, slide: 0.5 });
+      noise({ d: 2.2, g: 0.45, from: 2400, to: 60, type: 'lowpass', a: 0.003 }); noise({ d: 0.5, g: 0.2, from: 8000, to: 3000, type: 'highpass', a: 0.002 });
+      [45, 52, 57, 60, 64].forEach(m => tone({ f: hz(m), d: 4.5, type: 'sawtooth', g: 0.035, cutoff: 1400, a: 0.02 }));
+      tone({ f: hz(93), t: 0.05, d: 3.5, g: 0.04 }); tone({ f: hz(100), t: 0.1, d: 3.2, g: 0.025 });
+    },
+    teletype: () => { noise({ d: 0.025, g: 0.2, from: 5000, to: 3500, q: 3 }); tone({ f: 2200 + Math.random() * 400, d: 0.02, type: 'square', g: 0.015 }); },
+    siren: () => { for (let i = 0; i < 3; i++) { tone({ f: 640, t: i * 0.9, d: 0.45, type: 'sine', g: 0.025, slide: 1.35, a: 0.1 }); tone({ f: 860, t: i * 0.9 + 0.45, d: 0.45, type: 'sine', g: 0.025, slide: 0.75, a: 0.05 }); } },
     crackle: () => { for (let i = 0; i < 10; i++) noise({ t: i * 0.05, d: 0.05, g: 0.12, from: 2000 + Math.random() * 3000, to: 1500 }); },
   };
 
@@ -94,6 +106,7 @@
     tension:  { bpm: 120, chords: [[57, 60, 63], [57, 60, 63], [56, 59, 62], [56, 59, 62]], bass: [45, 45, 44, 44], lead: 'sawtooth', hat: 1, bell: false, pulse: true },
     jake:     { bpm: 112, chords: [[60, 64, 67], [57, 60, 64], [62, 65, 69], [55, 59, 62]], bass: [48, 45, 50, 43], lead: 'square', hat: 1, bell: false },
     victory:  { bpm: 104, chords: [[60, 64, 67], [65, 69, 72], [67, 71, 74], [60, 64, 67]], bass: [48, 53, 55, 48], lead: 'triangle', hat: 1, bell: true },
+    intro:    { bpm: 68, chords: [[45, 48, 52], [44, 48, 51], [41, 45, 48], [40, 44, 47]], bass: [33, 32, 29, 28], lead: 'sine', hat: 0, bell: true, pulse: true },
     sad:      { bpm: 70, chords: [[57, 60, 64], [53, 57, 60], [50, 53, 57], [52, 56, 59]], bass: [45, 41, 38, 40], lead: 'sine', hat: 0, bell: false },
   };
 

@@ -16,9 +16,21 @@ const DEADLINE = 60;           // minutes from 11:00 PM to midnight
 const SAVE_KEY = 'obh_save_v1', SET_KEY = 'obh_settings_v1', ACH_KEY = 'obh_achievements_v1';
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage is optional */ } },
-  del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage is optional */ } syncUp(k); },
+  del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } syncUp(k); },
 };
+
+/* ---------- optional cloud saves (Google sign-in, see js/cloud.js) ---------- */
+const Cloud = window.HeistCloud || { enabled: false };
+let syncTimer = 0;
+function syncUp(k) {
+  if (!Cloud.enabled || !Cloud.user || ![SAVE_KEY, ACH_KEY, SET_KEY].includes(k)) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    const data = JSON.parse(JSON.stringify({ save: store.get(SAVE_KEY, null), achievements: store.get(ACH_KEY, {}), settings: store.get(SET_KEY, {}) }));
+    Cloud.push(data).catch(e => console.warn('Cloud save failed', e));
+  }, 800);
+}
 
 const stage = $('stage');
 let RUN = 0;            // bumps on every new run so stale scripts stop
@@ -1805,13 +1817,248 @@ Object.entries(CAST).forEach(([who, c]) => c.faces.forEach(f => { const i = new 
 Object.values(SCENES).forEach(s => { const i = new Image(); i.src = IMG(s.img); preload.push(i); });
 ['compartment', 'jake', 'lineup'].forEach(n => { const i = new Image(); i.src = IMG(n); preload.push(i); });
 
+function renderAccount(u) {
+  $('account').hidden = !Cloud.enabled;
+  $('btnSignIn').hidden = !!u;
+  $('whoChip').hidden = !u;
+  $('accountNote').textContent = u ? 'Your progress and achievements are saved to your account.' : 'Log in to keep your progress and achievements on any device.';
+  if (u) { $('whoName').textContent = u.displayName || 'Detective'; $('whoPic').src = portrait('amy', 'happy'); }
+}
+function openAuth(mode = 'login') {
+  const reg = mode === 'register';
+  openModal(reg ? 'Create account' : 'Log in', `
+    <div class="tabs auth-tabs"><button class="tab ${reg ? '' : 'on'}" data-m="login">Log in</button><button class="tab ${reg ? 'on' : ''}" data-m="register">Create account</button></div>
+    <form class="auth-form" id="authForm" novalidate>
+      <label>User ID<input id="authUser" autocomplete="username" maxlength="20" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="e.g. amy_santiago"></label>
+      <label>Password<input id="authPass" type="password" maxlength="200" autocomplete="${reg ? 'new-password' : 'current-password'}"></label>
+      ${reg ? '<label>Confirm password<input id="authPass2" type="password" maxlength="200" autocomplete="new-password"></label><p class="auth-hint">User ID: 3 to 20 letters, numbers or underscores. Password: at least 6 characters.</p>' : ''}
+      <p class="auth-err" id="authErr" role="alert"></p>
+      <button class="btn primary" id="authGo" type="submit">${reg ? 'Create account' : 'Log in'}</button>
+      <p class="auth-hint">${reg ? 'Your save on this device moves into your new account.' : 'New here? Pick “Create account” above.'}</p>
+    </form>`, { narrow: true, cls: 'auth' });
+  $('modalBody').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { if (b.dataset.m !== mode) openAuth(b.dataset.m); });
+  const err = m => { $('authErr').textContent = m; if (m) Audio.sfx('deny'); };
+  $('authForm').onsubmit = async e => {
+    e.preventDefault();
+    const u = $('authUser').value.trim(), p = $('authPass').value;
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(u)) return err('User ID must be 3 to 20 letters, numbers or underscores.');
+    if (p.length < 6) return err('Password needs at least 6 characters.');
+    if (reg && p !== $('authPass2').value) return err('The two passwords do not match.');
+    err(''); const go = $('authGo'); go.disabled = true; go.textContent = reg ? 'Creating…' : 'Logging in…';
+    try {
+      await (reg ? Cloud.register(u, p) : Cloud.login(u, p));
+      closeModal(true);
+      Audio.sfx('unlock');
+    } catch (x) {
+      err(x.message);
+      go.disabled = false; go.textContent = reg ? 'Create account' : 'Log in';
+    }
+  };
+  setTimeout(() => $('authUser').focus(), 80);
+}
+async function mergeCloud() {
+  try {
+    const remote = await Cloud.pull();
+    if (remote) {
+      Object.assign(achieved, remote.achievements || {});
+      store.set(ACH_KEY, achieved);
+      const local = store.get(SAVE_KEY, null);
+      if (remote.save && (!local || (remote.save.at || 0) > (local.at || 0))) store.set(SAVE_KEY, remote.save);
+    }
+    syncUp(SAVE_KEY);
+    if (!$('title').hidden) $('btnContinue').hidden = !store.get(SAVE_KEY, null);
+  } catch (e) { console.warn('Could not load cloud save', e); toast('Cloud save', 'Could not reach your saved progress. Playing offline.', { icon: '☁', kind: 'bad' }); }
+}
+if (Cloud.enabled) {
+  renderAccount(null);
+  let first = true;
+  Cloud.onChange(u => {
+    renderAccount(u);
+    if (u) { mergeCloud(); if (!first) toast('Logged in', 'Welcome, ' + (u.displayName || 'Detective') + '. Progress now saves to your account.', { icon: '☁' }); }
+    first = false;
+  });
+  Cloud.init();
+  $('btnSignIn').onclick = () => openAuth('login');
+  $('btnSignOut').onclick = () => { Cloud.logout(); toast('Logged out', 'Progress will save on this device only.', { icon: '☁' }); };
+}
+
+/* =========================================================
+   Opening intro: a click gate (unlocks audio), then a short cinematic
+   ========================================================= */
+const Intro = (() => {
+  let run = 0, done = false, started = false;
+  const wait = (ms, id) => new Promise((res, rej) => setTimeout(() => (id === run ? res() : rej(0)), ms));
+  const reel = () => $('introReel');
+  const set = (cls, on = true) => reel().classList.toggle('s-' + cls, on);
+  function boom(white = true) {
+    const f = $('introFlash'); f.className = 'intro-flash'; void f.offsetWidth; f.className = 'intro-flash go' + (white ? '' : ' red');
+    const c = $('introCam'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+  }
+  // ember / spark particles drawn on one canvas, used on the gate and the logo hit
+  const fx = (() => {
+    let cv, g, W = 0, H = 0, raf = 0, parts = [], ambient = 0;
+    const size = () => { if (!cv) return; const d = Math.min(2, devicePixelRatio || 1); W = cv.width = innerWidth * d; H = cv.height = innerHeight * d; };
+    function ember(burst) {
+      if (burst) {
+        const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 14) * (W / 1400);
+        return { x: W / 2, y: H * 0.5, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6 - 1, r: (1 + Math.random() * 3) * (W / 1400), life: 0, max: 60 + Math.random() * 90, hue: 20 + Math.random() * 30, drag: 0.965 };
+      }
+      return { x: Math.random() * W, y: H + 10, vx: (Math.random() - 0.5) * 0.6, vy: -(0.6 + Math.random() * 1.6) * (H / 900), r: (0.6 + Math.random() * 2.2) * (W / 1400), life: 0, max: 200 + Math.random() * 260, hue: 18 + Math.random() * 28, drag: 1 };
+    }
+    function tick() {
+      g.clearRect(0, 0, W, H);
+      if (ambient && parts.length < 140 * ambient && Math.random() < 0.6) parts.push(ember(false));
+      g.globalCompositeOperation = 'lighter';
+      parts = parts.filter(p => (p.life++ < p.max));
+      for (const p of parts) {
+        p.vx *= p.drag; p.vy = p.vy * p.drag - 0.006; p.x += p.vx + Math.sin((p.life + p.r * 40) / 30) * 0.3; p.y += p.vy;
+        const k = p.life / p.max, a = (k < 0.1 ? k / 0.1 : 1 - k) * 0.9;
+        const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
+        gr.addColorStop(0, `hsla(${p.hue},100%,70%,${a})`); gr.addColorStop(0.35, `hsla(${p.hue},100%,55%,${a * 0.5})`); gr.addColorStop(1, `hsla(${p.hue},100%,50%,0)`);
+        g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, p.r * 4, 0, 7); g.fill();
+      }
+      g.globalCompositeOperation = 'source-over';
+      raf = (parts.length || ambient) ? requestAnimationFrame(tick) : 0;
+    }
+    return {
+      start(level = 1) { cv = cv || $('introFx'); g = g || cv.getContext('2d'); if (settings.reduce) return; size(); ambient = level; if (!raf) tick(); },
+      burst(n = 260) { if (settings.reduce || !g) return; for (let i = 0; i < n; i++) parts.push(ember(true)); if (!raf) tick(); },
+      level(l) { ambient = l; },
+      stop() { ambient = 0; parts = []; if (raf) cancelAnimationFrame(raf); raf = 0; g && g.clearRect(0, 0, W, H); },
+      size,
+    };
+  })();
+  addEventListener('resize', () => fx.size());
+
+  async function typeCap(stamp, line, id) {
+    const cap = $('introCap'); cap.classList.add('on');
+    $('introStamp').textContent = ''; $('introLine').textContent = line;
+    for (const ch of stamp) { $('introStamp').textContent += ch; if (ch !== ' ') Audio.sfx('teletype'); await wait(28, id); }
+    $('introLine').classList.remove('in'); void $('introLine').offsetWidth; $('introLine').classList.add('in');
+    Voice.speak(null, line);
+  }
+  const hideCap = () => $('introCap').classList.remove('on');
+  let front = 'shotA';
+  function cut(img, cls = '') {
+    const next = front === 'shotA' ? 'shotB' : 'shotA';
+    const el = $(next);
+    el.style.backgroundImage = `url(${IMG(img)})`;
+    el.className = 'shot'; void el.offsetWidth; el.className = 'shot on ' + cls;
+    $(front).classList.remove('on');
+    front = next;
+  }
+  const readTime = line => 1500 + line.length * 60;
+
+  function finish() {
+    if (done) return; done = true; run++;
+    Voice.stop();
+    const el = $('intro');
+    el.classList.add('out');
+    $('title').classList.remove('waiting');
+    Audio.init(); Audio.music('title');
+    setTimeout(() => { el.hidden = true; fx.stop(); }, 1200);
+  }
+  async function play() {
+    if (started) return; started = true;
+    const id = ++run;
+    Audio.init();
+    $('introGate').classList.add('out');
+    Audio.sfx('impact');
+    fx.level(0);
+    setTimeout(() => { $('introGate').hidden = true; }, 1100);
+    reel().hidden = false;
+    if (settings.reduce) set('still');
+    try {
+      await wait(1300, id);
+      Audio.music('intro');
+      set('rolling');
+      // 1. the precinct, police lights sweeping
+      cut('bullpen', 'push');
+      set('police'); Audio.sfx('siren');
+      await wait(900, id);
+      let line = 'Every Halloween, the Nine-Nine fights for one title.';
+      await typeCap('BROOKLYN · 99TH PRECINCT · 10:58 PM', line, id);
+      await wait(readTime(line), id);
+      hideCap(); set('police', false);
+      await wait(400, id);
+      // 2. security camera: the locker is empty
+      Audio.sfx('crackle');
+      cut('lockers', 'cctvshot'); set('cctv');
+      const tc = setInterval(() => { const t = $('introTc'); const f = (+t.dataset.f || 0) + 1; t.dataset.f = f; const sec = 41 + Math.floor(f / 24); t.textContent = `22:59:${String(sec % 60).padStart(2, '0')}:${String(f % 24).padStart(2, '0')}`; }, 42);
+      await wait(700, id).catch(e => { clearInterval(tc); throw e; });
+      line = 'Tonight, the prize has vanished.';
+      await typeCap('EVIDENCE LOCKER · 10:59 PM', line, id).catch(e => { clearInterval(tc); throw e; });
+      await wait(readTime(line), id).catch(e => { clearInterval(tc); throw e; });
+      clearInterval(tc);
+      Audio.sfx('crackle'); boom(false);
+      set('cctv', false); hideCap();
+      // 3. the lineup: six suspects slam in
+      cut('interrogation', 'dark');
+      await wait(500, id);
+      const SUS = [['jake', 'neutral', 'Peralta'], ['rosa', 'intimidating', 'Diaz'], ['boyle', 'excited', 'Boyle'], ['gina', 'judging', 'Linetti'], ['terry', 'serious', 'Jeffords'], ['holt', 'eyebrow', 'Holt']];
+      const lu = $('introLineup');
+      lu.innerHTML = SUS.map(([w, f, n], i) => `<figure style="--i:${i}"><img src="${portrait(w, f)}" alt=""><figcaption>${n}</figcaption><b>Suspect</b></figure>`).join('');
+      set('lineup');
+      for (let i = 0; i < SUS.length; i++) {
+        lu.children[i].classList.add('in'); Audio.sfx('thud', 1 + i * 0.06);
+        await wait(300, id);
+      }
+      line = 'Six suspects. Every one of them is lying.';
+      await typeCap('INTERVIEW ROOM 2', line, id);
+      await wait(readTime(line), id);
+      lu.classList.add('scatter'); hideCap();
+      await wait(500, id);
+      set('lineup', false);
+      // 4. the clock hits eleven: sixty minutes left
+      cut('smoke', 'slow');
+      set('clock');
+      const ct = $('introClockT');
+      for (let s = 55; s <= 60; s++) {
+        ct.textContent = s < 60 ? `10:59:${s}` : '11:00:00';
+        if (s < 60) { Audio.sfx('tick'); if (s % 2) Audio.sfx('heartbeat'); await wait(560, id); }
+      }
+      set('alarm'); Audio.sfx('sting'); boom(false);
+      $('introAmy').src = portrait('amy', 'determined'); set('amy');
+      line = 'One detective. Sixty minutes. No excuses.';
+      await typeCap('DETECTIVE AMY SANTIAGO', line, id);
+      await wait(readTime(line), id);
+      hideCap();
+      // 5. silence, riser, then the logo hits
+      set('clock', false); set('alarm', false); set('amy', false);
+      ['shotA', 'shotB'].forEach(x => $(x).classList.remove('on'));
+      Audio.music(null);
+      await wait(500, id);
+      Audio.sfx('riser', 1.9);
+      await wait(1900, id);
+      Audio.sfx('impact'); boom(); fx.start(0.6); fx.burst(320);
+      set('logo');
+      await wait(1300, id);
+      Audio.sfx('reveal');
+      Voice.speak(null, 'Operation: Best Human.');
+      const tag = 'Find the cummerbund before midnight.';
+      for (const ch of tag) { $('ilTag').textContent += ch; if (ch !== ' ') Audio.sfx('teletype'); await wait(34, id); }
+      await wait(1100, id);
+      Audio.sfx('tick');
+      await wait(1500, id);
+      finish();
+    } catch { /* skipped */ }
+  }
+  return { play, finish, gate() { fx.start(0.5); }, get done() { return done; } };
+})();
+Intro.gate();
+$('btnBegin').onclick = () => Intro.play();
+$('introSkip').onclick = e => { e.stopPropagation(); Audio.sfx('click'); Intro.finish(); };
+document.addEventListener('keydown', e => {
+  if (Intro.done || $('intro').hidden) return;
+  if ($('introReel').hidden) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); Intro.play(); } return; }
+  if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); Intro.finish(); }
+}, true);
+
 applySettings();
 $('btnContinue').hidden = !store.get(SAVE_KEY, null);
 titleFx.start();
 setBg('reveal');
-// Music needs a click first (browser rule); start it on the first interaction with the title screen.
-$('title').addEventListener('pointerdown', () => { if ($('title').hidden) return; Audio.init(); Audio.music('title'); }, { once: true });
 
 // Small hook for automated testing
-window.__heist = { get state() { return S; }, jump(ch, patch) { Audio.init(); resetStage(); S = Object.assign(freshState(), patch || {}); hideTitle(); updateBadge(); updateClock(); runFrom(ch); } };
+window.__heist = { get state() { return S; }, jump(ch, patch) { Intro.finish(); Audio.init(); resetStage(); S = Object.assign(freshState(), patch || {}); hideTitle(); updateBadge(); updateClock(); runFrom(ch); } };
 })();

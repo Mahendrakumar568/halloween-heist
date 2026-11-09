@@ -58,8 +58,43 @@
     </section>
   </div>
 
+  <!-- Opening intro: the first click unlocks sound, then the cinematic plays -->
+  <section id="intro" aria-label="Opening">
+    <canvas id="introFx" aria-hidden="true"></canvas>
+    <div class="intro-gate" id="introGate">
+      <div class="gate-glow"></div>
+      <div class="gate-kicker">Halloween night · Brooklyn</div>
+      <div class="gate-shield" aria-hidden="true"><svg viewBox="0 0 100 116"><path d="M50 4 92 18v38c0 28-18 46-42 56C26 102 8 84 8 56V18z"/><path d="M50 14 82 25v31c0 22-14 37-32 45-18-8-32-23-32-45V25z" class="in"/></svg><b>99</b></div>
+      <button class="gate-btn" id="btnBegin"><span class="pulse"></span><span class="lbl">Click to begin</span></button>
+      <div class="gate-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/></svg>Sound on. Best with headphones.</div>
+    </div>
+    <div class="intro-reel" id="introReel" hidden>
+      <div class="cam" id="introCam">
+        <div class="shot" id="shotA"></div><div class="shot" id="shotB"></div>
+        <div class="lights" id="introLights"><i class="r"></i><i class="b"></i></div>
+        <div class="cctv" id="introCctv"><span class="rec">● REC</span><span class="camid">CAM 04 · EVIDENCE LOCKER</span><span class="tc" id="introTc">22:59:41:00</span><i class="scan"></i></div>
+        <div class="lineup" id="introLineup"></div>
+        <div class="bigclock" id="introClock"><span id="introClockT">10:59:55</span><small>PM · Halloween</small></div>
+        <img class="amy-sil" id="introAmy" alt="">
+        <div class="intro-logo" id="introLogo">
+          <div class="shock"></div>
+          <div class="il-kicker">The 99th Precinct presents</div>
+          <div class="il-t1" id="ilT1">Operation</div>
+          <div class="il-t2"><span>Best Human</span></div>
+          <div class="il-tag" id="ilTag"></div>
+        </div>
+      </div>
+      <div class="intro-grain"></div>
+      <div class="intro-vig"></div>
+      <div class="bars"><i></i><i></i></div>
+      <div class="intro-cap" id="introCap"><small id="introStamp"></small><p id="introLine"></p></div>
+      <div class="intro-flash" id="introFlash"></div>
+      <button class="intro-skip" id="introSkip">Skip intro <span>▸▸</span></button>
+    </div>
+  </section>
+
   <!-- Title screen -->
-  <section id="title" class="screen">
+  <section id="title" class="screen waiting">
     <div class="title-bg"></div>
     <canvas id="titleFx" aria-hidden="true"></canvas>
     <div class="title-inner">
@@ -72,6 +107,11 @@
         <button class="btn" id="btnAch">Achievements</button>
         <button class="btn" id="btnSettings">Settings</button>
         <button class="btn" id="btnHow">How to play</button>
+      </div>
+      <div class="account" id="account" hidden>
+        <button class="btn" id="btnSignIn"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Log in / Create account</button>
+        <div class="who-chip" id="whoChip" hidden><img id="whoPic" alt=""><span><small>Detective on duty</small><b id="whoName"></b></span><button class="x" id="btnSignOut" title="Log out" aria-label="Log out">⎋</button></div>
+        <div class="account-note" id="accountNote">Log in to keep your progress and achievements on any device.</div>
       </div>
       <div class="title-foot">Best with sound on · <kbd>Space</kbd> advance · <kbd>C</kbd> case file · <kbd>M</kbd> travel · <kbd>Tab</kbd> show clues</div>
     </div>
@@ -89,6 +129,7 @@
   <div id="fade"></div>
   <div id="rotate-hint">Turn your phone sideways for the best view</div>
 </div>
+<script src="js/cloud.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>
 </body>
