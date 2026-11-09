@@ -1736,7 +1736,6 @@ const titleFx = (() => {
   function size() { const d = Math.min(devicePixelRatio || 1, 1.5); W = cv.width = innerWidth * d; H = cv.height = innerHeight * d; }
   function tick() {
     g.clearRect(0, 0, W, H);
-    if (fading) { fadeK -= fading; if (fadeK <= 0) { fadeK = 1; fading = 0; parts = parts.filter(p => p.conf); } }
     g.globalAlpha = 1;
     if (parts.length < 70) parts.push({ x: Math.random() * W, y: H + 10, vy: -(0.4 + Math.random() * 1.2), vx: (Math.random() - 0.5) * 0.5, r: 1 + Math.random() * 2.5, a: 0.3 + Math.random() * 0.7, ph: Math.random() * 6 });
     for (const p of parts) {
